@@ -112,6 +112,8 @@ fn main(){
 
     //多个 impl
     println!("{}",  rect3.get_width());
+       
+     
 
 }
 
