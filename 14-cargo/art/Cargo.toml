@@ -1,0 +1,9 @@
+[package]
+name = "test_yqq_art"
+version = "0.1.0"
+authors = ["youngqq <youngqqcn@163.com>"]
+edition = "2018"
+description="test art"
+license="MIT"
+
+[dependencies]

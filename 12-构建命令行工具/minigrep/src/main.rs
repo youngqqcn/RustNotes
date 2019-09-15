@@ -40,11 +40,11 @@ fn main() {
     println!("{}", contents);
     */
 
-    let args : Vec<String> = env::args().collect();
+    //let args : Vec<String> = env::args().collect();
     //let (query, filename) = parse_config(  &args );
 
     //let cfg = parse_config( &args );
-    let cfg =  Config::new( &args ).unwrap_or_else(|err|{
+    let cfg =  Config::new( env::args() ).unwrap_or_else(|err|{
         eprintln!("problem parsing arguments:{}", err);
         process::exit(1);
     }) ;

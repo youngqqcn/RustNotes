@@ -1,0 +1,15 @@
+[package]
+name = "cargodemo"
+version = "0.1.0"
+authors = ["youngqq <youngqqcn@163.com>"]
+edition = "2018"
+
+[dependencies]
+
+
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
