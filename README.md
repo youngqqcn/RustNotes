@@ -579,7 +579,7 @@ fn main() {
 
 `s1` 被移动到了 `s2` 之后, `s1` 不再有效.  也就不存在多次释放的问题
 
-![](./img/trpl04-04.svg)
+![](./img/trpl04-04.png)
 
 
 ####  Rust变量与数据交互的方式(2): 克隆
@@ -594,7 +594,7 @@ fn main() {
 }
 ```
 
-![](img/trpl04-03.svg)
+![](img/trpl04-03.png)
 
 
 #### Rust变量与数据交互的方式(3):  拷贝栈上的数据
@@ -741,7 +741,7 @@ let hello: &str = &s[0..5];  // &str类型
 let world = &s[6..11]; //
 ```
 
-![](./img/trpl04-06.svg)
+![](./img/trpl04-06.png)
 
 
 ```rust
