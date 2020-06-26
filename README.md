@@ -741,6 +741,7 @@ let hello: &str = &s[0..5];  // &str类型
 let world = &s[6..11]; //
 ```
 
+
 ![](./img/trpl04-06.png)
 
 
