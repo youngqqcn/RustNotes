@@ -1,0 +1,12 @@
+[package]
+name = "adder"
+version = "0.1.0"
+authors = ["root"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+add-one = { path = "../add-one" }
+mul-two = { path = "../mul-two" }
+rand = "0.5.5"
