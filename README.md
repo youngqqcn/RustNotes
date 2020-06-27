@@ -789,6 +789,522 @@ fn main() {
 ```
 
 
+## 第5章 结构体
+
+结构体分类:
+
+- 普通结构体: 包含数据字段的 
+- 元组结构体: 没有字段名称, 只有字段类型
+- 类单元结构体: 不包含数据字段的, 仅用来实现某些trait
+
+
+```rust
+
+struct User {
+    username: String,
+    email: String,
+}
+
+/*
+struct User {
+    username: &str, //结构体中使用引用, 需要考虑引用的生命周期
+    email: &str,
+}
+*/
+
+
+struct Color(u8, u8, u8); //元组结构体
+struct Point3D(f64, f64, f64);
+
+struct CanFly; //没有数据字段, 类单元结构体
+
+
+fn build_user(email: String, username: String) -> User {
+    // 变量与字段同名时, 初始化可以简写(需要写出字段名称)
+    User{
+        username,
+        email,
+    }
+}
+
+fn main() {
+
+    // let usr = User {"yqq", "1234@gmail.com" }; //ERROR
+
+    let usr = build_user(String::from("yqq"), 
+            String::from("123@gmail.com"));
+
+    let usr2 = User {
+        //只能用String, 不能用字符串字面值(&str), 因为生命周期的问题
+        username: String::from( "yqq" ), 
+        email: String::from( "234@gmail.com" )
+    };
+
+    let black = Color(0, 0, 0);
+
+    let p = Point3D(1.23, -234.12, 992.999);
+}
+```
+
+为结构体实现方法
+
+```rust
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+impl Rectangle {
+    fn area(&self) -> u32 {
+        self.width * self.height
+    }
+
+    //关联方法, 在C++中叫静态方法
+    fn name() -> String {
+        String::from("Rectangle")
+    }
+}
+
+impl Rectangle {
+    fn get_width(&self) -> u32 {
+        self.width
+    }
+}
+
+fn main() {
+    let rect = Rectangle { 
+        width: 100,
+        height: 100,
+    };
+
+    println!("面积: {}", rect.area());
+    println!("name: {}", Rectangle::name());
+    println!("width:{}", rect.get_width());
+}
+```
+
+
+## 第6章 枚举与模式匹配
+
+主要内容:
+- `enum`
+- `Option`
+- `match`
+
+
+枚举类型
+
+```rust
+enum Message {
+    Quit,  //没有关联数据
+    Move { x: i32, y: i32 },  //匿名结构体
+    Write(String), //包含String
+    ChangeColor(i32, i32, i32), //包含3个i32
+}
+
+// 可以为 枚举类型实现 方法
+impl Message {
+    fn call(&self) {
+        println!("call()");
+    }
+}
+
+fn main() {
+    let m = Message::Write(String::from("good"));
+    m.call();
+}
+```
+
+
+`Option` ,  `match` ,   `if let`
+
+Option: Rust中使用 Option<T>对空和非空进行处理
+
+match: 使用match可以进行模式匹配, 模式可由字面值,变量,通配符和其他内容组成. match 的匹配必须是 "穷尽" 的, 即必须匹配所有可能性.
+
+if let: 可以进行简单的模式匹配
+
+```rust
+enum Option<T> {
+    Some(T),
+    None,
+}
+```
+
+```rust
+fn some_func(x: i32) -> Option<i32> {
+    if x < 0 {
+        return None;
+    }
+    Some(x + 1)
+}
+
+
+fn main() {
+
+    for i in -3..3 {
+        //对函数返回值进行检查
+        match some_func(i) {
+            None => println!("minus"),
+            Some(n) => println!("{}", n),
+        };
+    }
+
+    let n = 8;
+    match n {
+        1 => println!("1"),
+        2 => println!("2"),
+        _ => println!(">=3"),  // _ 匹配所有的值
+    };
+
+    let n = Some(3);
+    if let Some(3) == n {
+        println!("3");
+    }
+
+    if let Some(num) = some_func(55) {
+        println!("some_func return: {}", num);
+    }
+}
+
+```
+
+
+## 第7章 包管理
+
+- 包（Packages）： Cargo 的一个功能，它允许你构建、测试和分享 crate。
+- Crates ：一个模块的树形结构，它形成了库或二进制项目。
+- 模块（Modules）和 use： 允许你控制作用域和路径的私有性。
+- 路径（path）：一个命名例如结构体、函数或模块等项的方式
+
+
+包的规则:
+- 一个包至多只能包含一个库crate(library crate)
+- 一个包中可以包含任意多个二进制crate(binary crate)
+- 包中至少包含一个crate, 无论是库crate还是二进制crate
+
+
+常用操作:
+- cargo new demo  创建二进制crate
+- cargo new libdemo --lib   创建库crate
+- 如果一个包同时含有 `src/main.rs` 和 `src/lib.rs`, 则它有两个crate: 一个库crate和一个二进制crate, 且crate的名字都与包相同
+- 可以将文件放在 `src/bin`目录下, 这样, 一个包就可以有多个二进制crate: `src/bin`目录下的每个文件都会被编译成不同二进制crate
+
+
+一个lib crate 多个 binary crate, 的包结构
+
+```
+canteen
+├── Cargo.lock
+├── Cargo.toml
+├── src
+│   ├── bin
+│   │   ├── demo2.rs
+│   │   └── demo.rs
+│   └── lib.rs
+└── target
+
+```
+
+一个lib crate  一个binary crate, 的包结构
+
+```
+canteen2
+├── Cargo.lock
+├── Cargo.toml
+├── src
+│   ├── lib.rs
+│   └── main.rs
+└── target
+
+```
+
+结构体成员默认是私有的
+枚举成员默认是公有的
+
+
+```rust
+use crate::front_of_house::hosting::add_to_waitlist; //引入作用域
+
+use std::io::Result as IoResult; //别名
+
+pub use crate::front_of_house::hosting; // 重新导出
+
+use std::{cmp::Ordering, io};
+use std::io::{self, Write};
+
+use std::collections::*; //将所有的公有定义引入作用域
+
+```
+
+
+### 将模块分割进不同文件
+
+```
+canteen3
+├── Cargo.lock
+├── Cargo.toml
+├── src
+│   ├── front_of_house
+│   │   └── hosting.rs
+│   ├── front_of_house.rs
+│   ├── lib.rs
+│   └── main.rs
+└── target
+```
+
+
+
+文件: `src/main.rs`
+```rust
+use canteen3::eat_at_restaurant;
+fn main() {
+    eat_at_restaurant();
+    println!("this is demo");
+}
+```
+
+文件: `src/lib.rs`
+```rust
+// mod 关键字声明了模块，
+//Rust 会在与模块同名的文件中查找模块的代码。
+mod front_of_house;  
+
+pub use crate::front_of_house::hosting;
+
+pub fn eat_at_restaurant() {
+    hosting::add_to_waitlist();
+    hosting::add_to_waitlist();
+    hosting::add_to_waitlist();
+}
+```
+
+文件: `src/front_of_house.rs`
+```rust
+pub mod hosting;
+```
+
+文件: `src/front_of_house/hosting.rs`
+
+```rust
+pub fn add_to_waitlist() {
+    println!("canteen3: add_to_waitlist... ");
+}
+```
+
+
+## 第8章 常见集合
+
+主要内容:
+- `Vec<T>` : 堆上数组
+- `String`: 堆上字符串
+- `Hasmap<K, V>`: KV数据结构, 同样在堆上
+
+
+#### vector
+
+```rust
+
+enum  MyEnum{
+    Int(i32),
+    Float(f64),
+    Txt(String),
+}
+
+fn main() {
+
+    let v2: Vec<f64> = Vec::new();
+    let mut v3 = vec![1, 3, 9]; //使用宏, 也是 Vec<iew> 类型
+
+    for it in &mut v3 {
+        *it += 100;
+    }
+
+    for it in v3 {
+        println!("{}", it);
+    }
+
+    let vct = vec! [
+        MyEnum::Float(1.234),
+        MyEnum::Int(12),
+        MyEnum::Txt(String::from("good")),
+    ];
+}
+```
+
+#### String 
+
+Rust的核心语言中字符串指的是 `str` 和 字符串slice即 `&str`
+
+`String`有标准库提供
+
+以上字符串类型都是UTF-8编码
+
+```rust
+
+// String 内部是有  Vec<u8> 进行封装
+
+fn main() {
+
+    let mut s1 = String::from("重庆火锅");
+    s1.push('赞'); //Rust的字符指的是 Unicode字符, 而不单指是一个字节ascii
+    s1.push_str("非常好吃!");
+
+    s1 += "麻辣火锅!";  
+    s1 = s1 + "天下一绝!";
+
+    s1 = format!("{}中国雄起!, {}", s1, "棒棒儿!");
+    
+    println!("{}", s1);
+
+    // println!("第一个字符: {}", &s1[0]);  // String 不支持索引操作
+
+    let d = "麻辣小面!"; //字面值支持索引操作
+    // println!("{}", &d[0..1]); //ERROR, 1不是有效边界
+    println!("{}", &d[0..3]); // 麻
+    println!("length: {}", d.len()); //13 个字节: 一个汉字占3个字节 感叹号是英文占一个字节
+
+
+    //这种方式遍历字符串是安全的
+    for ch in d.chars() {
+        println!("{}", ch);
+    }
+}
+```
+
+#### Hashmap
+
+和C++的`std::map`有点区别:
+- HashMap以hash表作为数据结构, C++中的`std::map`使用红黑树
+- HashMap插入如果键已经存在时新值替换旧值; C++中`std::map`则插入失败
+
+```rust
+
+use std::collections::HashMap;
+
+fn main() {
+
+    let mut scores = HashMap::new();
+    scores.insert("Alice", 10);
+    scores.insert("Bob", 199);
+
+
+    let names = vec!["Alice", "Bob", "Coris"];
+    let ages = vec![11, 10, 14];
+
+
+    let cls: HashMap<_, _> = names.iter().zip(ages.iter()).collect();
+    //使用 zip 方法来创建一个元组的 vector，其中 “Blue” 与 10 是一对
+    println!("{:?}", cls); //{"Alice": 11, "Coris": 14, "Bob": 10}
+
+
+
+    // 所有权
+    let name = String::from("name");
+    let age = String::from("age");
+    let mut tmp = HashMap::new();
+
+    // pub fn insert(&mut self, k: K, v: V) -> Option<V>
+    // 从 insert 方法的函数签名来看, k, v 是move
+    tmp.insert(name, age); //moved
+
+    println!("{:?}", tmp);
+    // println!("name={}, age={}", name, age);
+
+    let s = String::from("name");
+    let kv = tmp.get_key_value( &s );
+    match kv {
+        Some((k, v)) => {
+            println!("key:{}, value:{}", k, v);
+        },
+        None => println!("not found"),
+    }
+
+    /*
+    for (k,v) in tmp {  // 这种方式是移动! for循环之后tmp就无效了
+        println!("k:{:?}, v:{:?}", k, v);
+    }
+    */
+
+    for (k,v) in &tmp { //这种方式才是借用
+        println!("k:{:?}, v:{:?}", k, v);
+    }
+
+    tmp.insert("name".to_string(), "messi".to_string());  //如果键已经存在, 则新值替换就值
+
+    // 只有键不存在时才插入
+    tmp.entry("name".to_string()).or_insert("news".to_string());
+
+    println!("{:?}", tmp);
+
+    let text = "hello world wonderful world";
+    let mut map = HashMap::new();
+
+    for word in text.split_whitespace() {
+        // pub fn or_insert(self, default: V) -> &'a mut V
+        // 根据 or_insert 的函数签名
+        // or_insert会返回一个值得可变引用
+        let count = map.entry(word).or_insert(0);
+        *count += 1;
+    }
+
+    println!("{:?}", map);
+
+}
+```
+
+C++中 `std::map` 插入相同的key的情况:
+
+```cpp
+#include <iostream>
+#include <map>
+#include <string>
+
+int main()
+{
+    std::map<std::string, int> mp;
+
+    //insert方法返回值类型: std::pair<std::map<std::string, int>::iterator, bool>
+    auto ret = mp.insert(std::make_pair("name", 234));
+    if(!ret.second){
+        std::cout << "插入失败" << std::endl;
+    }else{
+        std::cout << "插入成功" << std::endl;
+        auto it = *ret.first;
+        std::cout << it.first << " : " << it.second << std::endl;
+    }
+
+    ret = mp.insert(std::make_pair("name", 234));
+    if(!ret.second){
+        std::cout << "插入失败" << std::endl;
+    } else {
+        auto it = *ret.first;
+        std::cout << it.first << " : " << it.second << std::endl;
+        std::cout << "插入成功" << std::endl;
+    }
+}
+```
+运行输出:
+```
+插入成功
+name : 234
+插入失败
+```
+
+
+
+## 第9章 错误处理
+
+主要内容:
+- panic!
+- `Result<T, E>`
+- 健壮地处理错误
+
+
+## 第10章 泛型, trait, 生命周期
+
+
+
 
 关于生命周期
 
