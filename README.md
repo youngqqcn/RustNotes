@@ -920,6 +920,8 @@ fn main() {
 
 Option: Rust中使用 Option<T>对空和非空进行处理
 
+
+
 match: 使用match可以进行模式匹配, 模式可由字面值,变量,通配符和其他内容组成. match 的匹配必须是 "穷尽" 的, 即必须匹配所有可能性.
 
 if let: 可以进行简单的模式匹配
@@ -1335,6 +1337,34 @@ enum Result<T, E> {
 
 关于Result的处理
 
+
+
+只要每一个错误类型都实现了 from 函数来定义如将其转换为返回的错误类型，? 运算符会自动处理这些转换。
+
+?运算符: 只能用于返回 Result 或者其它实现了 std::ops::Try 的类型的函数
+
+
+```rust
+
+
+/*
+match 表达式与问号运算符所做的有一点不同：? 运算符所使用的错误值被传递给了 from 函数，
+它定义于标准库的 From trait 中，其用来将错误从一种类型转换为另一种类型。
+当 ? 运算符调用 from 函数时，收到的错误类型被转换为定义为当前函数返回的错误类型。
+这在当一个函数返回一个错误类型来代表所有可能失败的方式时很有用，
+即使其可能会因很多种原因失败。只要每一个错误类型都实现了 from 
+函数来定义如将其转换为返回的错误类型，? 运算符会自动处理这些转换。
+*/
+fn read_username_from_file_ex() -> Result<String, io::Error> {
+    let mut f = File::open("hello.txt")?; // 使用 ? 运算符自动转换错误
+    let mut s = String::new();
+    f.read_to_string(&mut s)?;
+    Ok(s)
+}
+
+```
+
+
 ```rust
 
 fn read_string_from_file_v1(path: &String) -> Result<String, io::Error> {
@@ -1654,16 +1684,7 @@ fn longest<'a>(x : &'a str, y: &'a str) -> &'a str {
 生命周期语法是用于将函数的多个参数与其返回值的生命周期进行关联的。一旦他们形成了某种关联，Rust 就有了足够的信息来允许内存安全的操作并阻止会产生悬垂指针亦或是违反内存安全的行为。
 
 
-
-
-
-
-
 ```rust
-
-
-
-
 // 函数或方法的引用参数
 fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
     if x.len() > y.len() {
@@ -1821,26 +1842,23 @@ fn main() {
 
 在一些特定的情况下不需要指定生命周期:
 
-The first rule is that each parameter that is a reference gets its own lifetime parameter. In other words, a function with one parameter gets one lifetime parameter: `fn foo<'a>(x: &'a i32);` a function with two parameters gets two separate lifetime parameters: `fn foo<'a, 'b>(x: &'a i32, y: &'b i32)`; and so on.
+- The first rule is that each parameter that is a reference gets its own lifetime parameter. In other words, a function with one parameter gets one lifetime parameter: `fn foo<'a>(x: &'a i32);` a function with two parameters gets two separate lifetime parameters: `fn foo<'a, 'b>(x: &'a i32, y: &'b i32)`; and so on.
 
-The second rule is if there is exactly one input lifetime parameter, that lifetime is assigned to all output lifetime parameters: `fn foo<'a>(x: &'a i32) -> &'a i32`.
+- The second rule is if there is exactly one input lifetime parameter, that lifetime is assigned to all output lifetime parameters: `fn foo<'a>(x: &'a i32) -> &'a i32`.
 
-The third rule is if there are multiple input lifetime parameters, but one of them is `&self` or `&mut self` because this is a method, the lifetime of self is assigned to all output lifetime parameters. This third rule makes methods much nicer to read and write because fewer symbols are necessary.
+- The third rule is if there are multiple input lifetime parameters, but one of them is `&self` or `&mut self` because this is a method, the lifetime of self is assigned to all output lifetime parameters. This third rule makes methods much nicer to read and write because fewer symbols are necessary.
 
 
-第一条规则是每一个是引用的参数都有它自己的生命周期参数。换句话说就是，有一个引用参数的函数有一个生命周期参数：`fn foo<'a>(x: &'a i32)`，有两个引用参数的函数有两个不同的生命周期参数，`fn foo<'a, 'b>(x: &'a i32, y: &'b i32)`，依此类推。
+- 第一条规则是每一个是引用的参数都有它自己的生命周期参数。换句话说就是，有一个引用参数的函数有一个生命周期参数：`fn foo<'a>(x: &'a i32)`，有两个引用参数的函数有两个不同的生命周期参数，`fn foo<'a, 'b>(x: &'a i32, y: &'b i32)`，依此类推。
 
-第二条规则是如果只有一个输入生命周期参数，那么它被赋予给所有输出生命周期参数：`fn foo<'a>(x: &'a i32) -> &'a i32`。
+- 第二条规则是如果只有一个输入生命周期参数，那么它被赋予给所有输出生命周期参数：`fn foo<'a>(x: &'a i32) -> &'a i32`。
 
-第三条规则是如果方法有多个输入生命周期参数并且其中一个参数是 &self 或 &mut self，说明是个对象的方法(method)(译者注： 这里涉及rust的面向对象参见17章), 那么 self 的生命周期赋予给所有输出生命周期参数。第三条规则使得方法更容易读写，因为只需更少的符号。
+- 第三条规则是如果方法有多个输入生命周期参数并且其中一个参数是 &self 或 &mut self，说明是个对象的方法(method)(译者注： 这里涉及rust的面向对象参见17章), 那么 self 的生命周期赋予给所有输出生命周期参数。第三条规则使得方法更容易读写，因为只需更少的符号。
 
 
 
 
 ```rust
-
-
-
 //如果只有一个输入生命周期参数，那么它被赋予给所有输出生命周期参数
 // fn show_append_suffix(x: &mut String) ->  &str {
 fn show_append_suffix<'a>(x: &'a mut String) ->  &'a str {
@@ -1927,25 +1945,64 @@ fn main() {
 
 
 
+## 第13章  迭代器与闭包
+
+### 闭包
+
+闭包定义会为每个参数和返回值推断一个具体类型
+
+
+```rust
+
+fn main() {
+
+    let x = vec![1, 2, 3];
+
+    let is_equal_to_x = |a| a == x; //borrow
+    // let is_equal_to_x = move |a| a == x; // move
+
+    if is_equal_to_x(vec![1, 2, 3]) {
+        println!("yes");
+    }
+    // println!("x = {:?}", x);
+}
+```
+
+
+### 迭代器
 
 
 
+Iterator trait 需要实现 next 方法, 因为一些方法中调用了 next 方法
+这些调用 next 方法的方法被称为 消费适配器（consuming adaptors）
 
 
-关于  Option<T>
-
-为了拥有一个可能为空的值，你必须要显式的将其放入对应类型的 `Option<T>` 中。接着，当使用这个值时，必须明确的处理值为空的情况。只要一个值不是 `Option<T>` 类型，你就 可以 安全的认定它的值不为空。
-
+迭代器适配器(iterator adaptors) : 将当前迭代器转为不同类型的迭代器.
+在 Rust 中，迭代器是 惰性的（lazy）所以必须调用一个消费适配器方法来获取迭代器调用的结果.
 
 
-模块系统（the module system）包括：
+迭代器是 Rust 的 零成本抽象（zero-cost abstractions）之一，它意味着抽象并不会引入运行时开销，它与本贾尼·斯特劳斯特卢普（C++ 的设计和实现者）在 “Foundations of C++”（2012） 中所定义的 零开销（zero-overhead）
+
+迭代器适配器可以用链式调用, 可以写出非常简洁的代码.
+
+```rust
+fn main() {
+    let v1 = vec![1, 2, 3];
+    let v2: Vec<i32> = v1.iter().map(|x| x * x).collect();
+    println!("v2  = {:?}", v2);
+}
+```
+
+
+## 第14章 Cargo 和 Crates.io
+
+
+### 模块系统（the module system）包括：
 
 包（Packages）： Cargo 的一个功能，它允许你构建、测试和分享 crate。
 Crates ：一个模块的树形结构，它形成了库或二进制项目。
 模块（Modules）和 use： 允许你控制作用域和路径的私有性。
 路径（path）：一个命名例如结构体、函数或模块等项的方式
-
-
 
 
 一个包中至多 只能 包含一个库 crate(library crate)；
@@ -1960,124 +2017,14 @@ Cargo 遵循的一个约定：src/main.rs 就是一个与包同名的二进制 c
 Rust 中默认所有项（函数、方法、结构体、枚举、模块和常量）都是私有的。父模块中的项不能使用子模块中的私有项，但是子模块中的项可以使用他们父模块中的项。
 
 
-
-
-
-
-
-UTF-8 中的中文占3个字节, 
-
-遍历字符串可以使用 chars 方法
-
-
-```rust
-
-// 如果你需要操作单独的 Unicode 标量值，最好的选择是使用 chars 方法。
-// chars 方法会将字符串分开并返回 char 类型的值
-for ch in "北京烤鸭!Beijing Duck!".chars() {
-    println!("{}", ch);
-}
-
-```
-
-
-Rust 将错误组合成两个主要类别：可恢复错误（recoverable）和 不可恢复错误（unrecoverable）。
-- 可恢复错误通常代表向用户报告错误和重试操作是合理的情况，比如未找到文件。
-- 不可恢复错误通常是 bug 的同义词，比如尝试访问超过数组结尾的位置。
-
-
-我们可以设置 RUST_BACKTRACE 环境变量来得到一个 backtrace。
-
-```rust
-
-enum Result<T, E> {
-Ok(T),
-Err(E),
-}
-
-```
-
-
-
-只要每一个错误类型都实现了 from 函数来定义如将其转换为返回的错误类型，? 运算符会自动处理这些转换。
-
-?运算符: 只能用于返回 Result 或者其它实现了 std::ops::Try 的类型的函数
-
-
-```rust
-
-
-/*
-match 表达式与问号运算符所做的有一点不同：? 运算符所使用的错误值被传递给了 from 函数，
-它定义于标准库的 From trait 中，其用来将错误从一种类型转换为另一种类型。
-当 ? 运算符调用 from 函数时，收到的错误类型被转换为定义为当前函数返回的错误类型。
-这在当一个函数返回一个错误类型来代表所有可能失败的方式时很有用，
-即使其可能会因很多种原因失败。只要每一个错误类型都实现了 from 
-函数来定义如将其转换为返回的错误类型，? 运算符会自动处理这些转换。
-*/
-fn read_username_from_file_ex() -> Result<String, io::Error> {
-    let mut f = File::open("hello.txt")?; // 使用 ? 运算符自动转换错误
-    let mut s = String::new();
-    f.read_to_string(&mut s)?;
-    Ok(s)
-}
-
-```
-
-
-
-panic! 适用场景:
-
-- 示例 , 代码原型, 测试用例
-
-- panic! 通常适合调用不能够控制的外部代码时，这时无法修复其返回的无效状态。
-
-
-
-测试
-
-- panic!
-- should_panic! 
-- assert!
-
-
-
-闭包
-
-闭包定义会为每个参数和返回值推断一个具体类型
-
-
-```rust
-
-et example_closure = |x| x;
-
-let s = example_closure(String::from("hello"));
-let n = example_closure(5);
-
-```
-
-
-在 Rust 中，迭代器是 惰性的（lazy）
-
-
-Iterator trait 需要实现 next 方法, 因为一些方法中调用了 next 方法
-这些调用 next 方法的方法被称为 消费适配器（consuming adaptors）
-
-
-迭代器是 Rust 的 零成本抽象（zero-cost abstractions）之一，它意味着抽象并不会引入运行时开销，它与本贾尼·斯特劳斯特卢普（C++ 的设计和实现者）在 “Foundations of C++”（2012） 中所定义的 零开销（zero-overhead）
-
-
-
-
-Cargo 工作空间
+### Cargo 工作空间
 
 工作空间 是一系列共享同样的 Cargo.lock 和输出目录的包。
 我们的工作空间有一个二进制项目和两个库。二进制项目会提供主要功能，并会依赖另两个库。
 
 
 
-
-智能指针
+## 第15章 智能指针
 
 
 智能指针区别于常规结构体的显著特性在于其实现了 Deref 和 Drop trait。
@@ -2089,11 +2036,12 @@ Drop trait 允许我们自定义当智能指针离开作用域时运行的代码
 
 常用的智能指针
 
-Box<T>，用于在堆上分配值
-Rc<T>，一个引用计数类型，其数据可以有多个所有者
-Ref<T> 和 RefMut<T>，通过 RefCell<T> 访问，一个在运行时而不是在编译时执行借用规则的类型。
+- `Box<T>`，用于在堆上分配值
+- `Rc<T>`，一个引用计数类型，其数据可以有多个所有者
+- `Ref<T>` 和 `RefMut<T>`，通过 `RefCell<T>` 访问，一个在运行时而不是在编译时执行借用规则的类型。
 
 
+### Box智能指针
 
 Box<T>  数据存放在堆上 ,  而指向堆数据的指针在栈上
 
@@ -2101,27 +2049,28 @@ Box<T>  数据存放在堆上 ,  而指向堆数据的指针在栈上
 - 当有大量数据并希望在确保数据不被拷贝的情况下转移所有权的时候
 - 当希望拥有一个值并只关心它的类型是否实现了特定 trait 而不是其具体类型的时候
 
-    第1种: 递归类型(如通过指针实现链表)
-    第2种: 大数据量拷贝
-    第3种: trait 对象 
+第1种: 递归类型(如通过指针实现链表)
+第2种: 大数据量拷贝
+第3种: trait 对象 
 
-    *y  底层是  *(y.deref())
+Rust中为什么没有指针解引用`->`?
+因为,Rust使用`*`解引用, 即 *y  底层是  *(y.deref()), 加上Rust有自动解引用,很多地方必须手动解引用, 提高代码可读性.
 
 
 
 注意，每次当我们在代码中使用 * 时， * 运算符都被替换成了先调用 deref 方法再接着使用 * 解引用的操作，且只会发生一次，不会对 * 操作符无限递归替换，解引用出上面 i32 类型的值就停止了
 
 
-解引用强制多态（deref coercions）是 Rust 在函数或方法传参上的一种便利。其将实现了 Deref 的类型的引用转换为原始类型通过 Deref 所能够转换的类型的引用。当这种特定类型的引用作为实参传递给和形参类型不同的函数或方法时，解引用强制多态将自动发生。这时会有一系列的 deref 方法被调用，把我们提供的类型转换成了参数所需的类型。
+**解引用强制多态**（deref coercions）是 Rust 在函数或方法传参上的一种便利。其将实现了 Deref 的类型的引用转换为原始类型通过 Deref 所能够转换的类型的引用。当这种特定类型的引用作为实参传递给和形参类型不同的函数或方法时，解引用强制多态将自动发生。这时会有一系列的 deref 方法被调用，把我们提供的类型转换成了参数所需的类型。
 
 解引用强制多态的加入使得 Rust 程序员编写函数和方法调用时无需增加过多显式使用 & 和 * 的引用和解引用。这个功能也使得我们可以编写更多同时作用于引用或智能指针的代码。
+
+### Deref trait
 
 当所涉及到的类型定义了 Deref trait，Rust 会分析这些类型并使用任意多次 Deref::deref 调用以获得匹配参数的类型。这些解析都发生在编译时，所以利用解引用强制多态并没有运行时惩罚！
 
 
 ```rust
-
-
 fn foo(name: &str) {
     println!("hello , {}", name);
 }
@@ -2132,6 +2081,7 @@ foo( &(*m)[..] )  // Rust 没有解引用强制多态则必须编写的代码
 
 ```
 
+### Drop trait
 
 Rust 在发现类型和 trait 实现满足三种情况时会进行解引用强制多态：
 
@@ -2143,8 +2093,9 @@ std::mem::drop 进行提前清理
 我们也无需担心意外的清理掉仍在使用的值，这会造成编译器错误：所有权系统确保引用总是有效的，也会确保 drop 只会在值不再被使用时被调用一次。
 
 
-Rc<T> 引用技术智能指针
-注意 Rc<T> 只能用于单线程场景；
+### `Rc` 引用计数智能指针
+
+注意 Rc<T> 只能用于单线程场景
 
 
 克隆 Rc<T> 会增加引用计数
@@ -2157,6 +2108,7 @@ Rc<T> 引用技术智能指针
 回顾借用规则之一: 在任意给定时间，要么 只能有一个可变引用，要么 只能有多个不可变引用。
 
 
+### RefCell与内部可变性
 
 内部可变性（Interior mutability）是 Rust 中的一个设计模式，它允许你即使在有不可变引用时也可以改变数据，这通常是借用规则所不允许的。为了改变数据，该模式在数据结构中使用 unsafe 代码来模糊 Rust 通常的可变性和借用规则。
 
@@ -2206,32 +2158,28 @@ impl Messenger for MockMessenger {
 ```
 
 
-
-
 RefCell<T> 的一个常见用法是与 Rc<T> 结合。回忆一下 Rc<T> 允许对相同数据有多个所有者，不过只能提供数据的不可变访问。如果有一个储存了 RefCell<T> 的 Rc<T> 的话，就可以得到有多个所有者 并且 可以修改的值了！
-
 
 
 Cell<T>，它有些类似 RefCell<T>，除了提供内部值的引用，其值还会被拷贝进和拷贝出 Cell<T>
 
 
 
-引用循环与内存泄露
+### 引用循环与内存泄露
 
 
 创建引用循环并不容易，但也不是不可能。如果你有包含 Rc<T> 的 RefCell<T> 值或类似的嵌套结合了内部可变性和引用计数的类型，请务必小心确保你没有形成一个引用循环；你无法指望 Rust 帮你捕获它们。创建引用循环是一个程序上的逻辑 bug，你应该使用自动化测试、代码评审和其他软件开发最佳实践来使其最小化。
 
 
-
 循环将由一些拥有所有权的关系和一些无所有权的关系组成，只有所有权关系才能影响值是否可以被丢弃
 
-Weak<T> 没有所有权,   
-Weak<T> 引用的值可能已经被丢弃了, 可以调用 Weak<T> 实例的 upgrade 方法
-这会返回 Option<Rc<T>>
-如果 Rc<T> 值还未被丢弃，则结果是 Some；如果 Rc<T> 已被丢弃，则结果是 None。
+`Weak<T>` 没有所有权,   
+`Weak<T>` 引用的值可能已经被丢弃了, 可以调用 `Weak<T>` 实例的 upgrade 方法
+这会返回 `Option<Rc<T>>`
+如果 `Rc<T>` 值还未被丢弃，则结果是 `Some`；如果 `Rc<T>` 已被丢弃，则结果是 `None`。
 
 
-以下例子对于理解  Rc<T> 和 Weak<T> 有很大帮助
+以下例子对于理解  `Rc<T>` 和 `Weak<T>` 有很大帮助
 
 ```rust
 
@@ -2288,23 +2236,22 @@ fn main() {
 ```
 
 
-第15章--智能指针, 总结: 
+### 智能指针小结
 
 - Box<T> 有一个已知的大小并指向分配在堆上的数据
 - Rc<T> 记录了堆上数据的引用数量一遍可以拥有多个所有者
 - RefCell<T> 和其他内部可变性 提供了一个可以用于当需要不可变类型但是
    需要改变其内部值能力的类型,并在运行时而不是在编译时检查借用规则.
 
-Deref trait 和 Drop trait
+- 智能指针通过实现`Deref trait`实现解引用, 通过实现`Drop trait`实现资源自动释放(drop)
 
-引用循环造成内存泄露
-
-使用用 Weak<T> 避免循环引用
-
+- 使用智能指针要注意避免引用循环造成内存泄露
+- 可以使用 `Weak<T>` 避免循环引用
 
 
 
-第16章  无畏并发
+
+## 第16章  多线程
 
 并发编程(Concurrent programming) , 代表程序不同部分相互独立执行
 并行编程(Parrallel programming), 代表程序不同部分同时执行
@@ -2326,9 +2273,10 @@ Deref trait 和 Drop trait
 
 
 
-thread::spawn() 用于创建线程   ,  返回 JoinHanle<T>
+线程操作:
+- `thread::spawn()`: 创建线程, 返回 `JoinHanle<T>`
 
-JoinHandle.join().unwrap()  用于阻塞等待子线程结束
+- `JoinHandle.join().unwrap()`:  用于阻塞等待子线程结束
 
 
 ```rust
@@ -2356,6 +2304,7 @@ fn main() {
 
 ```
 
+### 线程与 `move`闭包
 
 ```rust
 
@@ -2377,7 +2326,7 @@ fn main() {
 }
 ```
 
-
+对比 C++11中的线程的问题:
 
 ```cpp
 #include <iostream>
@@ -2395,7 +2344,7 @@ int main()
         strcpy(p, "hello world!");
     });
 
-    delete[] p;
+    delete[] p; //直接释放!!
     p = nullptr;
     
     if(thrd.joinable())
@@ -2412,6 +2361,171 @@ int main()
 ```
 
 
+### 线程间消息传递
+
+
+Channel(通道), 借鉴了golang中的通道(`chan`)设计思想
+
+Go语言的口号: “不要通过共享内存来通讯；而是通过通讯来共享内存。”（“Do not communicate by sharing memory; instead, share memory by communicating.”）
+
+通道有两个部分组成: 发送者(transmitter) 和 接收者(receiver).  两者中任意一方先退出则通道被关闭.
+
+mpsc: 多个生产者,单个消费者 (multiple producer, single consumer)
+
+`std::sync::mpsc::channel` 是基于队列, 即先进先出. 所以接收方收到的顺序和发送顺序是一致.
+
+
+#### 异步通道 `mpsc::channel`
+
+```rust
+use std::thread;
+use std::sync::mpsc::{
+    channel  
+};
+
+use std::time::Duration;
+
+fn foo1(){
+    let (tx, rx) =  channel();
+
+    thread::spawn(move||{
+        let msg = String::from("goood");
+        tx.send(msg).expect("send error");
+    });
+
+    let recv_msg = rx.recv().expect("receive error");
+    println!("receive msg: {}", recv_msg);
+}
+
+fn foo2() {
+
+    //异步通道,即发送方不需要等待,可以不停地向通道中发送数据
+    // 因为存在 "infinite buffer" (无限buffer)
+    let (tx, rx) = channel(); 
+    let handle = std::thread::spawn(move || {
+        let vals = vec![
+            String::from("1"),
+            String::from("2"),
+            String::from("3"),
+        ];
+
+        //不阻塞, 一次性全部发完, 不必等待消费者消费
+        for v in vals {
+            println!("send {:?}", v);
+            tx.send(v).expect("send error");
+        }
+
+        println!("sender thread is finished");
+    });//发送线程结束, 离开作用域, tx将释放, channel关闭.
+
+    for recv in rx { 
+        //接收方阻塞等待消息到达, 此时发送方线程可能已经结束,
+        //但是, buffer中还有消息, 继续读取, 知道buffer为空了之后, 
+        //接收才会退出
+        thread::sleep(Duration::from_secs(1));
+        println!("got: {:?}", recv);
+    }
+
+    //阻塞等待子线程退出
+    handle.join().expect("thread panicked");
+}
+
+
+// 多个发送方
+fn foo3() {
+    
+    let (tx, rx) =  channel();
+
+    let tx_copy = tx.clone();
+
+
+    std::thread::spawn(move || {
+        let vals = vec![
+            String::from("A:1"),
+            String::from("A:2"),
+            String::from("A:3"),
+        ];
+
+        for val in vals { //move
+            tx_copy.send(val).expect("send error");
+            thread::sleep(Duration::from_secs(1));
+        }
+    });
+
+    std::thread::spawn(move || {
+        let vals = vec![
+            String::from("B:1"),
+            String::from("B:2"),
+            String::from("B:3"),
+        ];
+
+        for val in vals { //move
+            tx.send(val).expect("send error");
+            thread::sleep(Duration::from_secs(1));
+        }
+    });
+
+    //接收方
+    for rev in rx {//move
+        println!("{:?}", rev);
+        thread::sleep(Duration::from_secs(3));
+    }
+
+}
+
+
+fn main() {
+    // foo1();
+    // foo2();
+    foo3();
+}
+```
+
+
+#### 同步通道 `sync_channel`
+
+```rust
+use std::thread;
+use std::sync::mpsc::{
+    sync_channel, 
+    SyncSender, Receiver
+};
+use std::time::Duration;
+
+fn foo1() {
+
+    // 同步通道
+    //设置buffer 为 2,  如果buffer大小为0, 
+    //则表示发送方send方法会一致阻塞知道接收方消费
+    // let (tx, rx) = sync_channel(0);  
+    let (tx, rx) = sync_channel(1);   //当队列满了之后, 会阻塞到队列再一次开放
+
+    std::thread::spawn(move || {
+        let vcts = vec![
+            String::from("1"),
+            String::from("2"),
+            String::from("3"),
+            String::from("4"),
+        ];
+
+        for item in vcts {
+            tx.send(item).expect("send error");
+            println!("sent ok");
+        }
+    });
+
+
+    for rev in rx {
+        println!("got: {:?}", rev);
+        thread::sleep(Duration::from_secs(5));
+    }
+
+}
+
+fn main() {
+    foo1();
+}
+```
 
 
 Mutex 使用
