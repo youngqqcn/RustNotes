@@ -257,13 +257,13 @@ Rust的数据类型分为两大类: 标量(scalar) 和 复合(compound)
 
 整型
 
-|数字字面值|	例子
-|---------|-----------|
-|Decimal (十进制) |	`98_222`
-|Hex (十六进制)	| `0xff`
-|Octal (八进制) |	`0o77`
-|Binary (二进制) |	`0b1111_0000`
-|Byte (单字节字符)(仅限于u8) | `b'A'`
+| 数字字面值                  | 例子          |
+| --------------------------- | ------------- |
+| Decimal (十进制)            | `98_222`      |
+| Hex (十六进制)              | `0xff`        |
+| Octal (八进制)              | `0o77`        |
+| Binary (二进制)             | `0b1111_0000` |
+| Byte (单字节字符)(仅限于u8) | `b'A'`        |
 
 
 ```rust
@@ -2528,7 +2528,13 @@ fn main() {
 ```
 
 
-Mutex 使用
+## Mutex 与  Arc
+
+Mutex(互斥器)使用, 任意时刻只允许一个线程访问某些数据. 
+
+Rc: 引用计数智能指针只能用于单线程中, 不能再多线程间共享.
+
+Arc: 原子引用计数智能指针可以用于多线程中, 可以安全在线程间共享
 
 ```rust
 
@@ -2539,10 +2545,10 @@ fn main() {
     let counter = Mutex::new(0);
     let mut handles = vec![];
 
-    for _ in 0..10 {
+    for _ in 0..10 { //创建10个线程
         let handle = std::thread::spawn(move || {
             //编译错误: value moved into closure here, in previous iteration of loop
-            let mut num = counter.lock().unwrap(); 
+            let mut num = counter.lock().unwrap();  //加锁
             *num += 1;
         });
 
@@ -2568,34 +2574,338 @@ Rc<T> 并不能安全的在线程间共享。当 Rc<T> 管理引用计数时，�
 
 ```rust
 
+use std::sync::{
+    Mutex, Arc
+};
 
-use std::sync::Mutex;
 use std::rc::Rc;
-use std::thread;
 
-fn main() {
+/*
+fn foo1() {
+    let counter_mtx = Mutex::new(0);
 
-    let counter = Rc::new( Mutex::new(0) );  // 在前面学习 Rc<T> 的时候, Rc<T> 只能用于单线程
-    let mut handles = vec![];
+    let mut threads = Vec::new();;
 
-    for _ in 0..10 {
-        let ctr = Rc::clone(&counter);        // 改成 Rc<T> 之后 依然是编译错误:
-        let handle = thread::spawn(move || {  //`std::rc::Rc<std::sync::Mutex<i32>>` cannot be sent between threads safely
-            let mut num = ctr.lock().unwrap();   // the trait `std::marker::Send` is not implemented for `std::rc::Rc<std::sync::Mutex<i32>>`
+    for i in 0..10 {
+        let hd = std::thread::spawn( move || {
+            let mut num = counter_mtx.lock().expect("lock error");
             *num += 1;
         });
 
-        handles.push(handle);
+        threads.push(hd);
     }
 
-    for handle in handles {
-        handle.join().unwrap();
+    for thd in threads {
+        thd.join().expect("join error");
     }
 
-    println!("Result: {}", *counter.lock().unwrap());
+    println!("{:?}",  *counter_mtx.lock().expect("lock error"));
+}
+*/
+
+/*
+// `std::rc::Rc<std::sync::Mutex<i32>>` cannot be sent between threads safely
+fn foo2() {
+    let counter_rc = Rc::new( Mutex::new(0) );
+
+    let mut threads = Vec::new();;
+
+    for i in 0..10 {
+        let cnt = counter_rc.clone();
+        let hd = std::thread::spawn( move || {
+            let mut num = cnt.lock().expect("lock error");
+            *num += 1;
+        });
+
+        threads.push(hd);
+    }
+
+    for thd in threads {
+        thd.join().expect("join error");
+    }
+
+    println!("{:?}",  *counter_rc.lock().expect("lock error"));
+}
+*/
+
+fn foo3() {
+    let counter_arc = Arc::new( Mutex::new(0) );
+
+    let mut threads = Vec::new();
+
+    for _ in 0..10 {
+        let cnt = counter_arc.clone();
+        let hd = std::thread::spawn( move || {
+            let mut num = cnt.lock().expect("lock error");
+
+            // pub fn lock(&self) -> LockResult<MutexGuard<T>> 
+            // lock() 返回的是 MutexGuard ,离开作用域会自动 unlock
+            // 需要解引用才能获取到 T
+            *num += 1;
+        });
+
+        threads.push(hd);
+    }
+
+    for thd in threads {
+        thd.join().expect("join error");
+    }
+
+    println!("{:?}",  *counter_arc.lock().expect("lock error"));
+}
+
+fn main() {
+
+    // foo1();
+    // foo2();
+    foo3();
+   
 }
 
 ```
+
+
+#### 死锁
+
+C++ 死锁例子: 
+
+```cpp
+//C++ 死锁例子
+
+#include <iostream>
+#include <string>
+#include <thread>
+#include <mutex>
+#include <chrono>
+
+int main(int argc, char const *argv[])
+{
+    std::mutex mtx_a;
+    std::mutex mtx_b;
+
+    auto thd1 = std::thread([&]() {
+        for(uint64_t i = 0; ;i++)
+        {
+            // 两个线程获取锁的顺序不同, 导致死锁
+            mtx_b.lock();
+            mtx_a.lock();
+            std::cout << "thread A: "<< i << std::endl;
+            mtx_a.unlock();
+            mtx_b.unlock();
+        }
+    });
+
+    auto thd2 = std::thread([&]() {
+        for(uint64_t i = 0; ; i++)
+        {
+            mtx_a.lock();
+            mtx_b.lock();
+            std::cout << "thread B: " << i << std::endl;
+            mtx_b.unlock();
+            mtx_a.unlock();
+        }
+    });
+
+    thd1.join();
+    thd2.join();
+
+    return 0;
+}
+
+```
+
+C++17中可以使用 `scope_lock`, `lock_guard`管理锁
+
+```cpp
+int main(int argc, char const *argv[])
+{
+    std::mutex mtx_a;
+    std::mutex mtx_b;
+
+    auto thd1 = std::thread([&]() {
+        for(uint64_t i = 0; ;i++)
+        {
+            // 两个线程获取锁的顺序不同, 导致死锁
+            std::scoped_lock scopelock(mtx_a, mtx_b);
+            std::cout << "thread A: "<< i << std::endl;
+        }
+    });
+
+    auto thd2 = std::thread([&]() {
+        for(uint64_t i = 0; ; i++)
+        {
+            std::scoped_lock scopelock(mtx_a, mtx_b);
+            //std::scoped_lock scopelock(mtx_b, mtx_a);
+            std::cout << "thread B: " << i << std::endl;
+        }
+    });
+
+    thd1.join();
+    thd2.join();
+
+    return 0;
+}
+```
+
+C++17中的`std::scoped_lock`源码(GUN C++):
+
+```cpp
+/** @brief A scoped lock type for multiple lockable objects.
+ *
+ * A scoped_lock controls mutex ownership within a scope, releasing
+ * ownership in the destructor.
+ */
+template<typename... _MutexTypes>
+class scoped_lock
+{
+public:
+    explicit scoped_lock(_MutexTypes&... __m) : _M_devices(std::tie(__m...))
+    { std::lock(__m...); } 
+
+    explicit scoped_lock(adopt_lock_t, _MutexTypes&... __m) noexcept
+    : _M_devices(std::tie(__m...))
+    { } // calling thread owns mutex
+
+    ~scoped_lock()
+    {
+std::apply([](_MutexTypes&... __m) {
+    char __i[] __attribute__((__unused__)) = { (__m.unlock(), 0)... };
+}, _M_devices);
+    }
+
+    scoped_lock(const scoped_lock&) = delete;
+    scoped_lock& operator=(const scoped_lock&) = delete;
+
+private:
+    tuple<_MutexTypes&...> _M_devices;
+};
+
+/** @brief Generic lock.
+ *  @param __l1 Meets Lockable requirements (try_lock() may throw).
+ *  @param __l2 Meets Lockable requirements (try_lock() may throw).
+ *  @param __l3 Meets Lockable requirements (try_lock() may throw).
+ *  @throw An exception thrown by an argument's lock() or try_lock() member.
+ *  @post All arguments are locked.
+ *
+ *  All arguments are locked via a sequence of calls to lock(), try_lock()
+ *  and unlock().  If the call exits via an exception any locks that were
+ *  obtained will be released.
+ */
+template<typename _L1, typename _L2, typename... _L3>
+void
+lock(_L1& __l1, _L2& __l2, _L3&... __l3)
+{
+    while (true)
+    {
+        using __try_locker = __try_lock_impl<0, sizeof...(_L3) != 0>; //从第0个开始
+        unique_lock<_L1> __first(__l1);
+        int __idx;
+        auto __locks = std::tie(__l2, __l3...); //生成元组
+        __try_locker::__do_try_lock(__locks, __idx); //不停的尝试
+        if (__idx == -1)
+        {
+            __first.release();
+            return;
+        }
+    }
+}
+
+template<typename _Lock>
+inline unique_lock<_Lock>
+__try_to_lock(_Lock& __l)
+{ return unique_lock<_Lock>{__l, try_to_lock}; }
+
+template<int _Idx, bool _Continue = true> //递归继续的偏特化
+struct __try_lock_impl
+{
+    template<typename... _Lock>
+    static void
+    __do_try_lock(tuple<_Lock&...>& __locks, int& __idx)
+    {
+        __idx = _Idx; //初始 _Idx 为0, 每递归深入一次进行加 1
+        //获取第_Idx个元素(锁),并尝试lock
+        auto __lock = std::__try_to_lock(std::get<_Idx>(__locks)); 
+        if (__lock.owns_lock()) //是否拥有锁的所用权?
+        {
+             // _Idx + 2来判断是否已经到了倒数第2个(之所以加2,是因为_Idx是从0开始的), 
+             // 最后一个要递归终止, __cont为false, 
+             // 即进入 __try_lock_impl<_Idx, false>::__do_try_lock
+            constexpr bool __cont = _Idx + 2 < sizeof...(_Lock);
+
+            using __try_locker = __try_lock_impl<_Idx + 1, __cont>;
+            __try_locker::__do_try_lock(__locks, __idx);
+
+            if (__idx == -1)
+                __lock.release();
+        }
+    }
+};
+
+template<int _Idx>
+struct __try_lock_impl<_Idx, false>   //递归终止的偏特化模板类
+{
+    template<typename... _Lock>
+    static void
+    __do_try_lock(tuple<_Lock&...>& __locks, int& __idx)
+    {
+        __idx = _Idx;
+        auto __lock = std::__try_to_lock(std::get<_Idx>(__locks));
+        if (__lock.owns_lock())
+        {
+            __idx = -1;
+            __lock.release();
+        }
+    }
+};
+
+```
+
+
+
+
+
+```rust
+use std::sync::{Mutex, Arc};
+
+
+fn main() {
+
+    let mtx_a = Arc::new( Mutex::new(0) );
+    let mtx_b = Arc::new( Mutex::new(0) );
+
+    let mtx_a_cp = mtx_a.clone();
+    let mtx_b_cp = mtx_b.clone();
+    let thd1 = std::thread::spawn(move || {
+        for _ in 0..(1<<15) {
+
+            //以不同的顺序获取锁, 导致死锁
+            let mut guard_b = mtx_b_cp.lock().unwrap();
+            let mut guard_a = mtx_a_cp.lock().unwrap();
+            *guard_a += 1;
+            *guard_b += 1;
+            println!("threadA: a={:?}", guard_a);
+            println!("threadA: b={:?}", guard_b);
+        }
+        
+    });
+
+    let thd2 = std::thread::spawn(move || {
+        for _ in 0..(1<<15) {
+            let mut guard_a = mtx_a.lock().unwrap();
+            let mut guard_b = mtx_b.lock().unwrap();
+            *guard_a += 1;
+            *guard_b += 1;
+            println!("threadB: a={:?}", guard_a);
+            println!("threadB: b={:?}", guard_b);
+        }
+    });
+
+    println!("waitting for thread finished");
+    thd1.join().unwrap();
+    thd2.join().unwrap();
+}
+```
+
 
 
 原子引用计数  Arc<T>
