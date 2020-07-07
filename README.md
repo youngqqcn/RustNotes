@@ -2862,11 +2862,11 @@ struct __try_lock_impl<_Idx, false>   //递归终止的偏特化模板类
 
 
 
+Rust死锁例子
 
 
 ```rust
 use std::sync::{Mutex, Arc};
-
 
 fn main() {
 
@@ -2908,84 +2908,201 @@ fn main() {
 
 
 
-原子引用计数  Arc<T>
 
+#### 原子引用计数 `Arc<T>`
+Arc: 原子引用计数（atomically reference counted）类型, Arc类型可以安全地在线程间共享
 线程安全是以牺牲性能为代价.
 
 
+C++读写锁
+
+```cpp
+#include <iostream>
+#include <mutex>
+#include <thread>
+#include <shared_mutex>
+#include <iomanip>
+#include <vector>
+#include <chrono>
+// #include <stdlib.h>
+#include <cstring>
+
+int main()
+{
+
+    std::shared_mutex g_mutex;
+    unsigned char g_shared_buf[4];
+
+    auto writer = std::thread([&]() {
+        std::cout << "writer线程开始" << std::endl;
+        
+        std::cout << "开始写入" << std::endl;
+        for (int n = 0; n < 10; n++)
+        {
+            {
+                // std::lock_guard  lock(g_mutex);
+                std::unique_lock lock(g_mutex);  //写锁
+                std::cout << "写入" << n+1 << std::endl;
+                memset(g_shared_buf, n+1, sizeof(g_shared_buf));
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    });
+
+    // 自动推导
+    // std::vector<decltype(writer)> vct_threads;
+    // vct_threads.push_back(std::move(writer));
+
+    std::vector<std::thread> vct_threads;
+    // vct_threads.emplace_back(std::move(writer));
+    vct_threads.push_back(std::move(writer));
+
+    for (int i = 0; i < 10; i++)
+    {
+        vct_threads.emplace_back(std::thread([&, i]() {
+            for (int n = 0; n < 10; n++)
+            {
+                {
+                    std::shared_lock lock(g_mutex);  //读锁
+                    std::cout << "thread" << i << ":";
+                    for (int n = 0; n < sizeof(g_shared_buf); n++)
+                    {
+                        std::cout << (int)g_shared_buf[n];
+                    }
+                    std::cout << std::endl;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+        }));
+    }
+
+    // writer.join();
+
+    for (auto &thd : vct_threads)
+    {
+        thd.join();
+    }
+
+    return 0;
+}
+```
+
+
+Rust 读写锁
+
+```rust
+use std::thread;
+use std::sync::{RwLock, Arc};
+use std::time::Duration;
+
+
+fn main() {
+
+    let novel = Arc::new(RwLock::new(String::new()));
+
+    let novel_w = novel.clone();
+    let writer = std::thread::spawn(move || {
+        let setenses = vec![
+            "It was the best of times, ",
+            "it was the worst of times, ",
+            "it was the age of wisdom, ",
+            "it was the age of foolishness, ",
+            "it was the epoch of belief, ",
+            "it was the epoch of incredulity, ",
+            "it was the season of Light, ",
+            "it was the season of Darkness, ",
+            "it was the spring of hope, ",
+            "it was the winter of despair, ",
+            "we had everything before us, ",
+            "we had nothing before us,",
+        ];
+
+        //写数据
+        for s in setenses {
+            {
+                let mut nov = novel_w.write().unwrap();
+                println!("writer writting a setense");
+                *nov = String::from(s);
+            }
+            
+            thread::sleep(Duration::from_secs(1));
+        }
+    });
+
+    let mut readers = vec![];
+
+    //创建是个线程
+    for i  in 0..10 {
+        let nov_r = novel.clone();
+        readers.push(std::thread::spawn(move || {
+            //读数据
+            for _ in 0..10{
+                {
+                    let nov = nov_r.read().unwrap();
+                    println!("reader{:?}: {:?}", i, *nov);
+                }
+                thread::sleep(Duration::from_secs(1));
+            }
+        }));
+    }
+
+
+    writer.join().expect("writer join error");
+    for r in readers {
+        r.join().expect("reader join error");
+    }
+
+}
+```
+
+
+
+#### `Send trait` 和 `Sync trait`
+
+- `Send trait`: 允许在线程间转移所有权, 几乎所有的Rust类型都是`Send`的, 也有例外, 如 裸指针(raw pointer), `Rc`,`Rc`只能用于单线程中
+- `Sync trait`: 允许多线程访问, 即其值的引用可以安全地传递到多个线程中,  
+    - 对于任意类型`T`, 如果`T`是`Sync`的, 那么`&T`也是`Sync`的. 
+    - 完全由`Sync`类型组成的复合类型也是`Sync`的
+
+
+#### 总结
+
 RefCell<T> / Rc<T>  与  Mutex<T> / Arc<T> 的相似性:
-
-你可能注意到了，因为 counter 是不可变的，不过可以获取其内部值的可变引用；
-这意味着 Mutex<T> 提供了内部可变性，就像 Cell 系列类型那样。正如第十五章中使用
- RefCell<T> 可以改变 Rc<T> 中的内容那样，同样的可以使用 Mutex<T> 来改变 Arc<T> 中的内容。
+RefCell<T> 可以改变 Rc<T> 中的内容那样，同样的可以使用 Mutex<T> 来改变 Arc<T> 中的内容。
 
 
-
-另一个值得注意的细节是 Rust 不能避免使用 Mutex<T> 的全部逻辑错误。
-回忆一下第十五章使用 Rc<T> 就有造成引用循环的风险，这时两个 Rc<T> 值相互引用，
-造成内存泄露。同理，Mutex<T> 也有造成 死锁（deadlock） 的风险。这发生于当一个操作
-需要锁住两个资源而两个线程各持一个锁，这会造成它们永远相互等待。
-
-
-两个并发概念是内嵌于语言中的：std::marker 中的 Sync 和 Send trait
-
-
-通过 Send 允许在线程间转移所有权:
-
-Send 标记 trait 表明类型的所有权可以在线程间传递。几乎所有的 Rust 类型都是Send 的，
-不过有一些例外，包括 Rc<T>：这是不能 Send 的，因为如果克隆了 Rc<T> 的值并尝试将克隆的
-所有权转移到另一个线程，这两个线程都可能同时更新引用计数。为此，Rc<T> 被实现为用于
-单线程场景，这时不需要为拥有线程安全的引用计数而付出性能代价
-
-
-
-当尝试在示例 16-14 中这么做的时候，会得到错误 the trait Send is not implemented for Rc<Mutex<i32>>。
-而使用标记为 Send 的 Arc<T> 时，就没有问题了。
-
-基本类型都是Send的, 除了裸指针
-
-
-通过 Sync 允许多线程访问
-
-实现了 Sync 的类型可以安全的在多个线程中拥有其值的引用
-对于任意类型 T，如果 &T（T 的引用）是 Send 的话 T 就是 Sync 的
+Rust 提供了用于消息传递的通道，和像 Mutex<T> 和 Arc<T> 这样可以安全的用于并发上下文的智能指针。
+类型系统和借用检查器会确保这些场景中的代码，不会出现数据竞争和无效的引用。
+一旦代码可以编译了，我们就可以坚信这些代码可以正确的运行于多线程环境，
+而不会出现其他语言中经常出现的那些难以追踪的 bug。并发编程不再是什么可怕的概念：无所畏惧地并发吧！
 
 
 
 
-手动实现 Send 和 Sync 是不安全的:
-通常并不需要手动实现 Send 和 Sync trait，因为由 Send 和 Sync 的类型组成的类型，自动就是 Send 和 Sync 的。因为他们是标记 trait，甚至都不需要实现任何方法。他们只是用来加强并发相关的不可变性的。
+## 第17章 Rust的面向对象编程特性
 
-手动实现这些标记 trait 涉及到编写不安全的 Rust 代码，第十九章将会讲述具体的方法；当前重要的是，在创建新的由不是 Send 和 Sync 的部分构成的并发类型时需要多加小心，以确保维持其安全保证。
+> 组合优于继承
 
+### 面向对象三大要素
 
-
-总结:
-
-Rust 提供了用于消息传递的通道，和像 Mutex<T> 和 Arc<T> 这样可以安全的用于并发上下文的智能指针。类型系统和借用检查器会确保这些场景中的代码，不会出现数据竞争和无效的引用。一旦代码可以编译了，我们就可以坚信这些代码可以正确的运行于多线程环境，而不会出现其他语言中经常出现的那些难以追踪的 bug。并发编程不再是什么可怕的概念：无所畏惧地并发吧！
-
-
-
-
-Rust 中的面向对象
-
-封装: Rust可以使用pub与否来封装实现细节
-继承: Rust不能直接继承
-   OOP中使用继承的目的: 
-      1.复用代码  -->  Rust可以使用默认的trait方法实现行为共享
-      2.多态  --> Rust 则通过泛型来对不同的可能类型进行抽象，并通过 trait bounds 对这些类型所必须提供的内容施加约束
+- 封装: Rust可以使用pub与否来封装实现细节
+- 继承: Rust可以使用默认的trait方法实现行为共享
+- 多态: Rust则通过泛型来对不同的可能类型进行抽象，并通过`trait bounds` 对这些类型所必须提供的内容施加约束
 
 近来继承作为一种语言设计的解决方案在很多语言中失宠了，因为其时常带有共享多于所需的代码的风险。子类不应总是共享其父类的所有特征，但是继承却始终如此。如此会使程序设计更为不灵活，并引入无意义的子类方法调用，或由于方法实际并不适用于子类而造成错误的可能性。某些语言还只允许子类继承一个父类，进一步限制了程序设计的灵活性。
 
 因为这些原因，Rust 选择了一个不同的途径，使用 trait 对象而不是继承。让我们看一下 Rust 中的 trait 对象是如何实现多态的。
 
 
+### `trait`对象
+
+`trait`对象: 实现了一个特定的`trait`的类型的实例, 以及一个在运行时查找该类型的`trait`方法的表 
+
+有点类似C++中使用虚函数指针(vptr)和虚函数表(vtable)实现多态的机制
 
 以下例子对于理解 trait 对象 很有用
 
 ```rust
-
-
 pub trait Draw {
     fn draw(&self);
 }
@@ -3074,37 +3191,42 @@ fn main() {
 
 ```
 
-当编写库的时候，我们不知道何人会在何时增加 SelectBox 类型，不过 Screen 的实现能够操作并绘制这个新类型，因为 SelectBox 实现了 Draw trait，这意味着它实现了 draw 方法。
-这个概念 —— 只关心值所反映的信息而不是其具体类型 —— 类似于动态类型语言中称为 鸭子类型（duck typing）的概念：如果它走起来像一只鸭子，叫起来像一只鸭子，那么它就是一只鸭子！
+当编写库的时候，我们不知道何人会在何时增加 SelectBox 类型，不过 Screen 的实现能够操作并绘制这个新类型，因为 SelectBox 实现了 `Draw trait`，这意味着它实现了 draw 方法。
+这个概念 —— 只关心值所反映的信息而不是其具体类型 —— 类似于动态类型语言中称为 鸭子类型（`duck typing`）的概念：如果它走起来像一只鸭子，叫起来像一只鸭子，那么它就是一只鸭子！
 
 在上面的例子中, Screen上的run实现中, run并不需要知道各个组件的具体类型是什么, 它并不检查组件是 Button 或者 SelectBox 的实例。
-通过指定 Box<dyn Draw> 作为 components vector 中值的类型，我们就可以确定所有组件都实现了 draw方法以供在Screen的run方法被调用.
+通过指定 `Box<dyn Draw>` 作为 components vector 中值的类型，我们就可以确定所有组件都实现了 draw方法以供在Screen的run方法被调用.
 
 使用 trait 对象和 Rust 类型系统来进行类似鸭子类型操作的优势是无需在运行时检查一个值是否实现了特定方法或者担心在调用时因为值没有实现方法而产生错误。
 如果值没有实现 trait 对象所需的 trait 则 Rust 不会编译这些代码。
 
 
 
-动态分发(dynamic dispatch): 编译器在编译时期无法知道调用了什么方法, 只有在运行时才能确定调用了什么方法的代码.
-静态分发(static dispatch): 例如泛型的单态化. 编译器在编译时期为每一个被泛型类型参数代替的具体类型生成了非泛型的函数和方法实现. 
+#### 动态分发和静态分发:
+
+- 动态分发(dynamic dispatch): 编译器在编译时期无法知道调用了什么方法, 只有在运行时才能确定调用了什么方法的代码.
+- 静态分发(static dispatch): 例如泛型的单态化. 编译器在编译时期为每一个被泛型类型参数代替的具体类型生成了非泛型的函数和方法实现. 
 
 trait对象执行动态分发
 
 
+### `trait`对象安全
 
 Trait对象要求对象安全:
 
 对象安全（object safe）的 trait 才可以组成 trait 对象
 
-如果一个 trait 中所有的**方法**有如下属性时, 则trait就是对象安全:
+如果一个 trait 中所有的方法都符合以下条件, 则trait就是对象安全:
 1. 返回值类型不为 Self
 2. 方法没有任何泛型类型参数
 
-Self 关键字是我们要实现 trait 或方法的类型的别名。对象安全对于 trait 对象是必须的，因为一旦有了 trait 对象，就不再知晓实现该 trait 的具体类型是什么了。如果 trait 方法返回具体的 Self 类型，但是因为 trait 对象不知道其真正的类型，那么trait方法不可能*推导*出其具体类型。
+`Self` 关键字是我们要实现 trait 或方法的类型的别名。对象安全对于 trait 对象是必须的，因为一旦有了 trait 对象，就不再知晓实现该 trait 的具体类型是什么了。如果 trait 方法返回具体的 Self 类型，但是因为 trait 对象不知道其真正的类型，那么编译器不可能推导出此`trait`方法的具体类型。
+
 同理对于泛型类型参数来说，当使用 trait 时其会放入具体的类型参数：此具体类型变成了实现该 trait 的类型的一部分。当使用 trait 对象时其具体类型被抹去了，故无从得知放入泛型参数类型的类型是什么.  (这段话很难理解, 请看下面的例子)
 
 例如:
 一个 trait 的方法不是对象安全的例子是标准库中的 Clone trait
+
 ```rust
 pub trait Clone {
     fn clone(&self) -> Self;
@@ -3116,15 +3238,18 @@ String 实现了 Clone trait，当在 String 实例上调用 clone 方法时会�
 
 
 
-Rust实现面向对象设计模式--状态模式
+### Rust实现面向对象设计模式--状态模式(State Pattern)
 
 GoF关于状态模式的定义: 允许一个对象在其内部状态改变时改变它的行为. 对象看起来似乎修改了它的类. 
 
+![](./img/state-pattern.png)
+
+
+
+#### 完全面向对象的方式
+
 ```rust
-
 //  Rust 实现 状态模式   (State Pattern)
-
-
 pub struct Post {
     state: Option<Box<dyn State>>,
     content: String,
@@ -3239,8 +3364,6 @@ fn main() {
     println!("content: {}", post.content());
 }
 
-
-
 ```
 
 
@@ -3255,7 +3378,7 @@ fn main() {
 完全按照面向对象语言的定义实现这个模式并没有尽可能地利用 Rust 的优势
 
 
-Rust 非面向对象方式实现状态模式
+#### 非面向对象方式
 
 ```rust
 
@@ -3323,17 +3446,18 @@ fn main() {
 
 
 
-总结:
+### 总结
 阅读本章后，不管你是否认为 Rust 是一个面向对象语言，现在你都见识了 trait 对象是一个 Rust 中获取部分面向对象功能的方法。动态分发可以通过牺牲少量运行时性能来为你的代码提供一些灵活性。这些灵活性可以用来实现有助于代码可维护性的面向对象模式。Rust 也有像所有权这样不同于面向对象语言的功能。面向对象模式并不总是利用 Rust 优势的最好方式，但也是可用的选项。
 
 
 
 
 
-第18章   模式
+## 第18章 模式匹配
 
-match 分支
-match 表达式必须是 穷尽（exhaustive）的，意为 match 表达式所有可能的值都必须被考虑到。
+#### match 分支
+
+`match` 表达式必须是 穷尽（exhaustive）的，意为 match 表达式所有可能的值都必须被考虑到。
 
 ```rust
 match VALUE {
@@ -3344,15 +3468,20 @@ match VALUE {
 ```
 
 
-
-if let 条件表达式
-
-while let 条件循环
-
+#### `if let` 条件表达式
 
 ```rust
 
+if let Some(s) = foo(arg) {
+    //do something
+}
 
+```
+
+
+#### while let 条件循环
+
+```rust
 fn main() {
 
 
@@ -3373,13 +3502,12 @@ fn main() {
 ```
 
 
-while let 的注意点!
+`while let` 的注意点: 注意变量的有效作用域
 
 ```rust
 
 fn new(id: i32,  arc_receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
     let thread = thread::spawn(move || {
-
         /*
         loop {
             // 使用 loop 并在循环块之内而不是之外获取锁和任务，
@@ -3390,7 +3518,6 @@ fn new(id: i32,  arc_receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
             job();
         }
         */
-
 
         // 因为 while 表达式中的值在整个块一直处于作用域中，
         // job() 调用的过程中其仍然持有锁，
@@ -3415,10 +3542,18 @@ fn new(id: i32,  arc_receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
 
 
 
-for 循环
+#### for 循环
+
+```rust
+let v = vec!['a', 'b', 'c'];
+
+for (index, value) in v.iter().enumerate() {
+    println!("{} is at index {}", value, index);
+}
+```
 
 
-let 语句
+#### let 语句
 
 ```rust
 let PATTERN = EXPRESSION;
@@ -3433,17 +3568,29 @@ let (x, y) = (1, 2, 3);  // error
 ```
 
 
-函数参数
+#### 函数参数
+
+```rust
+fn print_coordinates(&(x, y): &(i32, i32)) {
+    println!("Current location: ({}, {})", x, y);
+}
+
+fn main() {
+    let point = (3, 5);
+    print_coordinates(&point);
+}
+```
 
 
+### 模式的可反驳性
 
 模式有两种形式：
-refutable（可反驳的）: 对某些可能的值进行匹配会失败的模式被称为是 可反驳的（refutable）
-irrefutable（不可反驳的）: 能匹配任何传递的可能值的模式被称为是 不可反驳的（irrefutable）
+- refutable（可反驳的）: 对某些可能的值进行匹配会失败的模式被称为是 可反驳的（refutable）
+- irrefutable（不可反驳的）: 能匹配任何传递的可能值的模式被称为是 不可反驳的（irrefutable）
 
 例如: 
-let x = 5; 语句中的 x，因为 x 可以匹配任何值所以不可能会失败, 所以是不可反驳的;
-if let Some(x) = a_value 表达式中的 Some(x)；如果变量 a_value 中的值是 None 而不是 Some，那么 Some(x) 模式不能匹配,  所以是可反驳的.
+`let x = 5;` 语句中的 x，因为 x 可以匹配任何值所以不可能会失败, 所以是不可反驳的;
+if let Some(x) = a_value 表达式中的 Some(x) 如果变量 a_value 中的值是 None 而不是 Some，那么 Some(x) 模式不能匹配,  所以是可反驳的.
 
 
 命名变量是匹配任何值的不可反驳模式，然而当其用于 match 表达式时情况会有些复杂。因为 match 会开始一个新作用域，match 表达式中作为模式的一部分声明的变量会覆盖 match 结构之外的同名变量，与所有变量一样。
@@ -3466,12 +3613,14 @@ fn main() {
 
 ```
 
-多个模式
+#### 多个模式
+
+可以使用 `|` 语法匹配多个模式
 
 ```rust
 let x  = 1;
 match x {
-    1 | 2 => println!("one or two"),
+    1 | 2 => println!("one or two"), // 匹配 1 或 2
     3 => println!("three"),
     _ => println!("anything"),
 }
@@ -3479,7 +3628,7 @@ match x {
 ```
 
 
-通过 ..= 匹配值得范围
+#### `通过 ..= 匹配值得范围`
 
 范围只允许用于数字或 char 值
 
@@ -3492,8 +3641,6 @@ match x {
         _ => println!("something else"),
     }
 }
-
-
 
 {
     let x = '5';
@@ -3508,7 +3655,7 @@ match x {
 
 
 
-解构结构体
+#### 解构结构体
 
 ```rust
 // 解构枚举
@@ -3519,7 +3666,6 @@ match x {
         Write(String),
         ChangeColor(i32, i32,i32),
     }
-
 
     // let msg = Message::ChangeColor(0xff, 0xff, 0xff); //black
     // let msg = Message::Move{x:99, y:0};
@@ -3542,148 +3688,147 @@ match x {
 
 ```
 
-使用  _ 忽略特定的值
-注意, 只使用 _ 和使用以下划线开头的名称有些微妙的不同：比如 _x 仍会将值绑定到变量，而 _ 则完全不会绑定。
+#### 使用  `_` 忽略特定的值
+
+注意, 只使用 `_` 和使用以下划线开头的名称有些微妙的不同：比如 `_x` 仍会将值绑定到变量，而 `_` 则完全不会绑定。
 
 ```rust
+// 忽略模式中的值
+{
+    fn foo(_: i32, y: i32) { // 忽略 第一个参数
+        println!("foo() y = {}", y);
+    }
 
-    // 忽略模式中的值
+    foo(3, 4);
+}
 
-    {
-        fn foo(_: i32, y: i32) { // 忽略 第一个参数
-            println!("foo() y = {}", y);
+
+{
+    // let mut setting_value = Some(5);
+    let mut setting_value = None;
+    let new_setting_value = Some(10);
+    // let new_setting_value = None;
+
+    match (setting_value, new_setting_value) {
+        (Some(_), Some(_)) => {
+            println!("Can't overwrite and existing customized value")
+        },
+        _ => {
+            setting_value = new_setting_value;
         }
+    }
+    println!("setting is {:?}", setting_value);
+}
 
-        foo(3, 4);
+
+// 可以在一个模式中的多处使用下划线来忽略特定值
+{
+
+    let numbers  = (2, 4, 8, 16, 32);
+
+    match numbers {
+        (first, _, third, _, fifth)  => {
+            println!("some numbmer: {}, {}, {}", first, third, fifth);
+        },
     }
 
+}
 
-    {
-        // let mut setting_value = Some(5);
-        let mut setting_value = None;
-        let new_setting_value = Some(10);
-        // let new_setting_value = None;
+// 通过在变量名字前加一个下划线作为开头, 来忽略未使用变量
+{
+    let _x = 99;
+    let y = 999;
+}
 
-        match (setting_value, new_setting_value) {
-            (Some(_), Some(_)) => {
-                println!("Can't overwrite and existing customized value")
-            },
-            _ => {
-                setting_value = new_setting_value;
-            }
-        }
-        println!("setting is {:?}", setting_value);
+
+{
+    
+    let s = Some(String::from("Hello!"));
+
+    if let Some(_) = s {
+        println!("found a string");
     }
 
-
-    // 可以在一个模式中的多处使用下划线来忽略特定值
-    {
-
-        let numbers  = (2, 4, 8, 16, 32);
-
-        match numbers {
-            (first, _, third, _, fifth)  => {
-                println!("some numbmer: {}, {}, {}", first, third, fifth);
-            },
-        }
-
-    }
-
-    // 通过在变量名字前加一个下划线作为开头, 来忽略未使用变量
-    {
-        let _x = 99;
-        let y = 999;
-    }
-
-
-    {
-        
-        let s = Some(String::from("Hello!"));
-
-        if let Some(_) = s {
-            println!("found a string");
-        }
-
-        println!("{:?}", s);
-    }
+    println!("{:?}", s);
+}
 
 ```
 
 
-用 .. 忽略剩余值
+#### 用 `..` 忽略剩余值
 
 ```rust
 // 用 .. 忽略剩余值
-    {
-        struct Point {
-            x: i32,
-            y: i32,
-            z: i32,
-        }
-
-        let orgin  = Point{ x: 1, y: 0, z: 0 };
-        
-        match orgin {
-            Point{x, .. } => println!("x is {}", x),
-        }
-
-
-
-        let numbers = (1, 2, 3, 4);
-
-        match numbers {
-            (first, .., last) => {
-                println!("Some numbers: {}, {}", first, last);
-            }
-        }
-
+{
+    struct Point {
+        x: i32,
+        y: i32,
+        z: i32,
     }
+
+    let orgin  = Point{ x: 1, y: 0, z: 0 };
+    
+    match orgin {
+        Point{x, .. } => println!("x is {}", x),
+    }
+
+
+    let numbers = (1, 2, 3, 4);
+
+    match numbers {
+        (first, .., last) => {
+            println!("Some numbers: {}, {}", first, last);
+        }
+    }
+
+}
 ```
 
 
-匹配守卫(match guard)
+#### 匹配守卫(match guard)
 
 
 ```rust
 // 匹配守卫  (match guard)
-    {
-        let num = Some(4);
+{
+    let num = Some(4);
 
-        match num {
-            Some(x) if x < 5 => println!("less than five: {}", x),
-            Some(x) => println!("{}", x),
-            None => (),
-        }
-
-
-        let x = Some(5);
-        let y = 10;
-
-        match x {
-            Some(50) => println!("Got 50"),
-            Some(n) if n == y => println!("Matched, n = {}", n),
-            _ => println!("Default case, x = {:?}", x),
-        }
-
-        println!("at the end: x = {:?}, y = {}", x, y);
-        
+    match num {
+        Some(x) if x < 5 => println!("less than five: {}", x),
+        Some(x) => println!("{}", x),
+        None => (),
     }
 
-    {
-        let x = 4;
-        let y = false;
 
-        match x {
-            4 | 5 | 6 if y => println!("yes"),  // x 为 4, 5 或 6     并且  y 为true
-            _ => println!("no"),
-        }
+    let x = Some(5);
+    let y = 10;
+
+    match x {
+        Some(50) => println!("Got 50"),
+        Some(n) if n == y => println!("Matched, n = {}", n),
+        _ => println!("Default case, x = {:?}", x),
     }
+
+    println!("at the end: x = {:?}, y = {}", x, y);
+    
+}
+
+{
+    let x = 4;
+    let y = false;
+
+    match x {
+        4 | 5 | 6 if y => println!("yes"),  // x 为 4, 5 或 6     并且  y 为true
+        _ => println!("no"),
+    }
+}
 
 ```
 
 
-@ 绑定变量
-at 运算符（@）允许我们在创建一个存放值的变量的同时测试其值是否匹配模式。
+#### `@`绑定变量
+
+运算符`@`允许我们在创建一个存放值的变量的同时测试其值是否匹配模式。
 
 ```rust
  // @ 绑定
@@ -3718,7 +3863,7 @@ at 运算符（@）允许我们在创建一个存放值的变量的同时测试�
 
 
 
-第19章   Rust高级特性
+## 第19章   Rust高级特性
 
 本章内容:
 - 不安全Rust :  用于当需要舍弃Rust的某些保证并手动维持这些保证
@@ -3729,7 +3874,6 @@ at 运算符（@）允许我们在创建一个存放值的变量的同时测试�
 - 高级类型: 关于newtype模式的更多内容, 类型别名, never类型和动态大小类型
 - 高级函数和闭包: 函数指针和返回闭包
 - 宏: 在编译时定义(展开)更多代码的方式
-
 
 
 
