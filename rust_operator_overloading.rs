@@ -47,6 +47,7 @@ impl Add for Matrix {
 }
 
 
+// 实现矩阵的乘法
 impl Mul for Matrix {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self {
@@ -60,13 +61,13 @@ impl Mul for Matrix {
         for row in 0..a.len() {
             let mut tmp_row = Vec::new();
             for col in 0..b[0].len() {
-                tmp_row.push(|i: usize, j: usize| -> i32 {
+                tmp_row.push(|| -> i32 {
                     let mut sum = 0;
-                    for idx in 0..j{
-                        sum += a[i][idx] * b[idx][i];
+                    for c in 0..b.len() {
+                        sum += a[row][c] * b[c][col];
                     }
                     sum
-                }(row , col ));
+                }());
             }
             new_matrx.push(tmp_row);
         }
@@ -103,8 +104,6 @@ fn main() {
     let c3 = c1 + c2;
     println!("c3 is {:?}", c3);
 
-
-
     let mtx1 = Matrix(vec![
         vec![1, 2, 3], 
         vec![1, 0, 2],
@@ -134,7 +133,6 @@ fn main() {
         // vec![1, 1, 2],
     ]);
 
-    println!("mtxa * mtxb = {}", mtxa * mtxb);
-    // println!("mtxb * mtxa = {}", mtxb * mtxa);
-
+    // println!("mtxa * mtxb = {}", mtxa * mtxb);
+    println!("mtxb * mtxa = {}", mtxb * mtxa);
 }

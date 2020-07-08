@@ -3787,7 +3787,6 @@ match x {
 
 #### 匹配守卫(match guard)
 
-
 ```rust
 // 匹配守卫  (match guard)
 {
@@ -3869,7 +3868,7 @@ match x {
 - 不安全Rust :  用于当需要舍弃Rust的某些保证并手动维持这些保证
 - 高级trait: 与trait相关的关联类型, 默认类型参数, 
     完全限定语法(fully qualified syntax), 
-    超(父) trait (supertraits)和 nwetype
+    超(父) trait (supertraits)和 newtype
 
 - 高级类型: 关于newtype模式的更多内容, 类型别名, never类型和动态大小类型
 - 高级函数和闭包: 函数指针和返回闭包
@@ -3985,14 +3984,158 @@ trait Add<RHS=Self> { //默认参数类型
 
 ```
 
+运算符重载例子
 
-运算符重载的例子
+```rust
+use std::ops::{
+    Add,
+    Mul, 
+};
+use std::fmt;
+// use std::fmt::{Display, Formatter};
+
+
+#[derive(Debug)]
+struct Complex {
+    real: f64,
+    image: f64,
+}
+
+impl Add for Complex {
+    type Output = Complex;
+    fn add(self, rhs: Complex) -> Complex{
+        Complex {
+            real: self.real + rhs.real,
+            image: self.image + rhs.image,
+        }
+    }
+}
+
+
+
+#[derive(Debug)]
+struct Matrix(Vec<Vec<i32>>);
+
+impl Add for Matrix {
+    type Output = Matrix;
+
+    fn add(self, rhs: Matrix) -> Matrix {
+        assert_eq!(self.0.len(), rhs.0.len());
+
+        let mut new_matrx = Vec::new();
+        for row in 0..self.0.len() {
+            let mut new_row = Vec::new();
+            for col in 0..self.0[row].len() {
+                new_row.push( self.0[row][col] + rhs.0[row][col] );
+            }
+            new_matrx.push(new_row);
+        }
+        Matrix(new_matrx)
+    }
+
+}
+
+
+// 实现矩阵的乘法
+impl Mul for Matrix {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self {
+        assert_eq!(self.0.len(), rhs.0[0].len()); 
+        assert_eq!(self.0[0].len(), rhs.0.len());
+
+        let a = &self.0;
+        let b = &rhs.0;
+
+        let mut new_matrx = Vec::new();
+        for row in 0..a.len() {
+            let mut tmp_row = Vec::new();
+            for col in 0..b[0].len() {
+                tmp_row.push(|| -> i32 {
+                    let mut sum = 0;
+                    for c in 0..b.len() {
+                        sum += a[row][c] * b[c][col];
+                    }
+                    sum
+                }());
+            }
+            new_matrx.push(tmp_row);
+        }
+
+        Matrix(new_matrx) 
+    }
+}
+
+
+
+impl fmt::Display for Matrix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = String::new();
+        for row in 0..self.0.len() {
+            s.push_str("| ");
+            for col in 0..self.0[row].len() {
+                s.push_str( &self.0[row][col].to_string()[..] );
+                s.push_str(" ")
+            }
+            s.push_str("|\n");
+        }
+        s.push_str("\n");
+        write!(f, "\n{}", s)
+    }
+}
+
+
+
+fn main() {
+
+    let c1 = Complex { real:5.1, image:-1.2 };
+    let c2 = Complex { real:0.123 , image: 9.19};
+
+    let c3 = c1 + c2;
+    println!("c3 is {:?}", c3);
+
+    let mtx1 = Matrix(vec![
+        vec![1, 2, 3], 
+        vec![1, 0, 2],
+        vec![1, 0, 2],
+    ]);
+
+    let mtx2 = Matrix(vec![
+        vec![0, 2, 3], 
+        vec![1, 0, 2],
+        vec![1, 1, 2],
+    ]);
+
+    // let mtx3 = mtx1 + mtx2;
+    let mtx3 = mtx1 * mtx2;
+    println!("mtx3 is {}", mtx3);
+
+
+    let mtxa = Matrix(vec![
+        vec![1, 3], 
+        vec![5, 2],
+        vec![1, 2],
+    ]);
+
+    let mtxb = Matrix(vec![
+        vec![5, 2, 3], 
+        vec![4, 1, 2],
+        // vec![1, 1, 2],
+    ]);
+
+    // println!("mtxa * mtxb = {}", mtxa * mtxb);
+    println!("mtxb * mtxa = {}", mtxb * mtxa);
+}
+
+```
 
 
 
 
-完全限定语法
 
+
+#### 完全限定语法
+
+如果多个作用域都有相同的方法, 可以通过加限定的方式指明调用哪个作用域中的方法
 
 ```rust
 
@@ -4001,19 +4144,16 @@ person.fly();
 Pilot::fly(&person);
 Wizard::fly(&person);
 
- println!("a bady dog is called a {}", <Dog as Animal>::baby_name());
-
+println!("a bady dog is called a {}", <Dog as Animal>::baby_name());
 
 ```
 
 
 
 
-父trait用于在另一个trait中使用某trait的功能
+#### 父trait用于在另一个trait中使用某trait的功能
 
 ```rust
-
-
 // 实现  supertrait
 trait OutlinePrint: fmt::Display { // 相当于为 trait 增加 trait bound
     fn outline_print(&self) {
@@ -4083,7 +4223,7 @@ fn main() {
 
 
 
-高级类型
+### 高级类型
 
 - 使用 newtype可以让类型名或参数类型可读性更好, 不容易混淆
 - 隐藏实现细节
@@ -4091,7 +4231,7 @@ fn main() {
 
 
 
-类型别名
+#### 类型别名
 
 类似C中的 typedef 
 
@@ -4119,7 +4259,7 @@ type Result<T> = std::result::Result<T, std::io::Error>;
 
 
 
-从不返回的never type
+#### 从不返回的never type
  
 ```rust
 // bar 也称 发散函数（diverging functions）
@@ -4152,16 +4292,12 @@ let guess = match guess.trim().parse() {
 
 
 
-动态大小类型(DST  dynamically sized types) 和 Sized trait
+#### 动态大小类型(DST  dynamically sized types) 和 Sized trait
 
 规则: 必须将动态大小类型的值置于某种指针之后
 
 
-
-
-
-
-高级函数与闭包
+#### 函数指针与闭包
 
 函数指针
 
@@ -4193,7 +4329,7 @@ fn main() {
 
 
 
-返回闭包
+#### 闭包作为函数返回值
 
 ```rust
 
@@ -4203,7 +4339,6 @@ fn main() {
 //fn return_closure() -> Fn(i32) -> i32 {
 //    |x| x + 1
 //}
-
 
 
 fn return_closure() -> Box<dyn Fn(i32) -> i32> {
@@ -4222,7 +4357,7 @@ fn main() {
 
 
 
-宏
+### 宏
 
 - 声明（Declarative）宏
 - macro_rules!
@@ -4275,8 +4410,6 @@ temp_vec
 ```
 
 
-
-
 derive 只能用于结构体和枚举；
 
 
@@ -4299,8 +4432,7 @@ let sql = sql!(SELECT * FROM posts WHERE id=1);
 
 
 
-第 20 章   构建多线程 web server
-
+## 第20章  构建多线程 web server
 
 
 ```rust
