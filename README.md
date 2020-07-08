@@ -1,13 +1,5 @@
 # Rust 笔记(持续更新...)
 
-## 文档
-
-> - Rust官方文档: https://doc.rust-lang.org/book/
-> - Rust中文文档: https://kaisery.github.io/trpl-zh-cn/
-> - 通过例子学Rust(英文): https://doc.rust-lang.org/stable/rust-by-example/
-> - 通过例子学Rust(中文): https://rustwiki.org/zh-CN/rust-by-example/
-> - Cargo文档: https://doc.rust-lang.org/cargo/
-
 
 ## 目录
 
@@ -31,3 +23,14 @@
 - [第18章-模式匹配.md](./doc/第18章-模式匹配.md)
 - [第19章-Rust高级特性.md](./doc/第19章-Rust高级特性.md)
 - [第20章-示例-构建一个简单的多线程WebServer.md](./doc/第20章-示例-构建一个简单的多线程WebServer.md)
+
+
+## 文档
+
+> - Rust官方文档: https://doc.rust-lang.org/book/
+> - Rust中文文档: https://kaisery.github.io/trpl-zh-cn/
+> - 通过例子学Rust(英文): https://doc.rust-lang.org/stable/rust-by-example/
+> - 通过例子学Rust(中文): https://rustwiki.org/zh-CN/rust-by-example/
+> - Cargo文档: https://doc.rust-lang.org/cargo/
+
+
