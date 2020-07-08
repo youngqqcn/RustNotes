@@ -51,3 +51,9 @@ impl Drop for ThreadPool {
 - 将 unwrap 调用改为更健壮的错误处理
 - 使用 ThreadPool 进行其他不同于处理网络请求的任务
 - 在 crates.io 上寻找一个线程池 crate 并使用它实现一个类似的 web server，将其 API 和鲁棒性与我们的实现做对比
+
+
+
+> - 首页: [README.md](../README.md)
+> - 上一章: [第19章-Rust高级特性](./第19章-Rust高级特性.md)
+> - 杂谈: [杂谈](./杂谈.md)
