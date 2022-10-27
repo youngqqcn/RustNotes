@@ -39,5 +39,3 @@ fn main() {
             ]);
 
     println!("w = {}", w);
-
-}
