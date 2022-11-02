@@ -23,9 +23,9 @@ impl fmt::Display for MyList {
         // 遍历vec
         for (c, v) in vs.iter().enumerate() {
             if c > 0 {
-                write!(f, ",")?;
+                write!(f, ", ")?;
             }
-            write!(f, "{}", v)?; // 打印值
+            write!(f, "{}: {}", c, v)?; // 打印值
         }
 
         write!(f, "]")
