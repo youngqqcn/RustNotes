@@ -32,6 +32,13 @@ struct Color {
     blue: u8,
 }
 
+
+impl fmt::Display for Color {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "RGB ({0}, {1}, {2}) 0x{0:02X}{1:02X}{2:02X}", self.red, self.green, self.blue )
+    }
+}
+
 fn main() {
 
     println!("{}", City{name: "Beijing", lat:43.2342, lon: -123.23});
@@ -52,6 +59,20 @@ fn main() {
         Color { red: 0, green: 0, blue: 0 },
     ].iter() {
         // 在添加了针对 fmt::Display 的实现后，请改用 {} 检验效果。
-        println!("{:?}", *color)
+        println!("{:?}", *color);
     }
+
+
+
+    println!("===============");
+    for color in [
+        Color { red: 128, green: 255, blue: 90 },
+        Color { red: 0, green: 3, blue: 254 },
+        Color { red: 0, green: 0, blue: 0 },
+    ].iter() {
+        // 在添加了针对 fmt::Display 的实现后，请改用 {} 检验效果。
+        // println!("{:?}", *color);
+        println!("{}", *color);
+    }
+
 }
