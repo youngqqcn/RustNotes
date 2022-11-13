@@ -1,138 +1,45 @@
-// Author: yqq
-// Date: 2022-11-13 10:35:07
-// Description: 别名使用
-
-// 数据可以多次不可变借用，但是在不可变借用的同时，原始数据不能使用可变借用。
-// 或者说，同一时间内只允许一次可变借用。仅当最后一次使用可变引用之后，
-// 原始数据才可以再次借用。
-
-
-// struct Point { x: i32, y: i32, z: i32 };
-
+struct Point { x: i32, y: i32, z: i32 }
 
 fn main() {
+    let mut point = Point { x: 0, y: 0, z: 0 };
 
-    {
+    let borrowed_point = &point;
+    let another_borrow = &point;
 
-        let b = 1;
-        let a = b;
+    // 数据可以通过引用或原始类型来访问
+    println!("Point has coordinates: ({}, {}, {})",
+                borrowed_point.x, another_borrow.y, point.z);
 
-        println!("a = {} ", a);
-        println!("b = {}", b);
-        // println!("*a = {}", *a); // error:  type `{integer}` cannot be dereferenced
+    // 报错！`point` 不能以可变方式借用，因为当前还有不可变借用。
+    // let mutable_borrow = &mut point;
+    // TODO ^ 试一试去掉此行注释
 
-        let c = 2;
-        // a = c; // error: cannot assign twice to immutable variable
-    }
+    // 被借用的值在这里被重新使用
+    println!("Point has coordinates: ({}, {}, {})",
+                borrowed_point.x, another_borrow.y, point.z);
 
-    {
-        let b = 2;
-        let a = &b;
-        println!("a = {}, b = {}", a, b);
-        println!("a = {}, b = {}", *a, b);
+    // 不可变的引用不再用于其余的代码，因此可以使用可变的引用重新借用。
+    let mutable_borrow = &mut point;
 
-        // *a = 99; // `a` is a `&` reference, so the data it refers to cannot be written
-    }
+    // 通过可变引用来修改数据
+    mutable_borrow.x = 5;
+    mutable_borrow.y = 2;
+    mutable_borrow.z = 1;
 
+    // 报错！不能再以不可变方式来借用 `point`，因为它当前已经被可变借用。
+    // let y = &point.y;
+    // TODO ^ 试一试去掉此行注释
 
-    {
-        let b = 2;
-        // let mut a = &b;
-        let mut a = &b;
-        println!("&&&& a = {}, b = {}", a, b);
-        println!("a = {}, b = {}", *a, b);
-        let c = 3;
-        a = &c;
-        println!("a = {}", a);
-    }
+    // 报错！无法打印，因为 `println!` 用到了一个不可变引用。
+    // println!("Point Z coordinate is {}", point.z);
+    // TODO ^ 试一试去掉此行注释
 
+    // 正常运行！可变引用能够以不可变类型传入 `println!`
+    println!("Point has coordinates: ({}, {}, {})",
+                mutable_borrow.x, mutable_borrow.y, mutable_borrow.z);
 
-
-    // {
-    //     let b = 2;
-    //     let a = &mut b; // error:  cannot borrow `b` as mutable, as it is not declared as mutable
-    //     println!("a = {}, b = {}", a, b);
-    //     // println!("a = {}, b = {}", *a, b);
-
-    //     // *a = 99; // `a` is a `&` reference, so the data it refers to cannot be written
-    // }
-    {
-        let mut b = 1;
-        let a = &mut b;
-        println!("xxx===> a = {}", a);
-        // println!("xxx===> a = {}, b = {}", a, b); // error
-        // println!("b = {}", b); //error
-        *a = 99;
-        // println!("xxx===> a = {}, b = {}", a, b); // error
-        println!("xxx===> a = {}", a);
-        println!("b = {}", b);
-
-        let mut c = 1;
-        // a = &mut c;  // error, cannot assign twice to immutable variable `a`
-    }
-
-    {
-        let b = 1;
-        let mut a = b; // 将b的值进行了拷贝
-        println!("=jj==> a = {}, b = {}", a, b);
-        a = 2;
-        println!("===> a = {}, b = {}", a, b);
-    }
-
-
-    {
-        let b = 1;
-        let &(mut a) = &b;
-        println!("+++ a = {}, b = {}", a, b);
-        a  = 999;
-        println!("+++ a = {}, b = {}", a, b);
-        // println!("+++ a = {}, b = {}", *a, b); // type `{integer}` cannot be dereferenced
-    }
-
-    {
-        let b = 1;
-        // let ref mut a  = b;  // 错，同 let a = &mut b;
-        let mut c = 1;
-        let ref mut a = c;
-        *a = 99;
-        // println!("a = {}, c = {}", *a, c); // c已经被可变借用了，不能再使用
-        println!("a = {}", *a);
-        println!("c = {}", c);
-
-        let mut d = 777;
-        a = &mut d;
-        println!("a = {}", a);
-    }
-
-    {
-        let mut c = 1;
-        let a = &mut c;
-        *a = 99;
-        println!("a = {}", *a);
-
-        let mut d = 33;
-        // a = &mut d; // error
-    }
-
-    {
-        let mut c = 1;
-        let mut a = &mut c;
-        *a = 99;
-        println!("a = {}", *a);
-
-        let mut d = 33;
-        a = &mut d; // ok
-        println!("a = {}", *a);
-    }
+    // 可变引用不再用于其余的代码，因此可以重新借用
+    let new_borrowed_point = &point;
+    println!("Point now has coordinates: ({}, {}, {})",
+             new_borrowed_point.x, new_borrowed_point.y, new_borrowed_point.z);
 }
-
-// let b = 1;
-//
-// 思考下面的情况， a代表什么？
-// let a = b;   // a是不可变变量
-// let a = &b;  // a是不可变应用
-// let a = &mut b; // 错误，因为b是不可变变量，不能进行可变借用
-// let mut a = b;  // 将b的值拷贝到a， a是可变变量
-// let &(mut a) = &b;  // 同 let mut a = b; a是普通可变整数类型
-// let ref a = b;  // 同 let a = &b;
-// let mut c = 1; let ref mut a = c;   //  同 let &mut a = c;
